@@ -84,6 +84,7 @@ enum Status: string
             self::READY => 12,
             self::CUSTOMS => 11,
             self::SHIPPED => 10,
+            self::WAITING_FOR_COURIER => 8,
             self::PACKED => 9,
             self::PROCESSING => 5,
             self::ON_THE_WAY => 4,
