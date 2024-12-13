@@ -81,10 +81,10 @@ enum Status: string
     {
         return match ($this) {
             self::UNRECOGNIZED => 100,
-            self::READY => 12,
+            self::READY => 13,
+            self::WAITING_FOR_COURIER => 12,
             self::CUSTOMS => 11,
             self::SHIPPED => 10,
-            self::WAITING_FOR_COURIER => 8,
             self::PACKED => 9,
             self::PROCESSING => 5,
             self::ON_THE_WAY => 4,
