@@ -47,6 +47,7 @@ enum Status: string
     case SHIPPED = 'Отправленные';
     case CUSTOMS = 'Растаможить товар';
     case READY = 'Готово к выдаче';
+    case WAITING_FOR_COURIER = 'Ожидает курьера';
     case UNRECOGNIZED = 'Неизвестный статус';
 
     public function getColor(): ?string
@@ -60,6 +61,7 @@ enum Status: string
             self::READY => '#3eb950',
             self::UNRECOGNIZED,
             self::CUSTOMS => '#ff0000',
+            self::WAITING_FOR_COURIER => '#ffc80a',
             default => null,
         };
     }
@@ -154,6 +156,7 @@ $results[] = loadItemsFromPage('package/?status=packed');
 $results[] = loadItemsFromPage('package/?status=ready-to-pickup');
 $results[] = loadItemsFromPage('package/?status=sent');
 $results[] = loadItemsFromPage('package/?status=customs-held');
+$results[] = loadItemsFromPage('package/?status=local-depo');
 $results = array_merge(...$results);
 
 usort(
