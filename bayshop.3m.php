@@ -250,6 +250,8 @@ foreach ($results as $item) {
     );
 
     if (($cache[$item['id']] ?? null) !== $item['status']->name) {
+        $hasChanges = true;
+
         showToastNotification(
             $item['title'],
             "Статус посылки сменился на {$item['status']->getText()}",
@@ -260,10 +262,12 @@ foreach ($results as $item) {
     $cache[$item['id']] = $item['status']->name;
 }
 
-file_put_contents(
-    __DIR__ . CACHE_FILE,
-    json_encode($cache, JSON_THROW_ON_ERROR),
-);
+if ($hasChanges) {
+    file_put_contents(
+        __DIR__ . CACHE_FILE,
+        json_encode($cache, JSON_THROW_ON_ERROR),
+    );
+}
 
 echo "---\n";
 echo REFRESH_BUTTON;
