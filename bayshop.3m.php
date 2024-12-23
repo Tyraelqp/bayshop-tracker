@@ -43,6 +43,30 @@ if (empty(SESSION_ID)) {
     ));
 }
 
+enum Platform: string
+{
+    case MAC_OS = 'Darwin';
+    case LINUX = 'Linux';
+
+    public function showToastNotification(string $title, string $message): void
+    {
+        $command = match ($this) {
+            self::MAC_OS => sprintf(
+                'osascript -e \'display notification "%s" with title "%s" sound name "Glass.aiff"\'',
+                $message,
+                $title,
+            ),
+            self::LINUX => sprintf(
+                'notify-send "%s" "%s"',
+                $title,
+                $message,
+            ),
+        };
+
+        exec($command);
+    }
+}
+
 enum Status: string
 {
     case UNKNOWN = 'Статус неизвестен';
@@ -96,24 +120,6 @@ enum Status: string
             self::UNKNOWN => 1,
         };
     }
-}
-
-enum Sound: string
-{
-    case BASSO = 'Basso.aiff';
-    case BLOW = 'Blow.aiff';
-    case BOTTLE = 'Bottle.aiff';
-    case FROG = 'Frog.aiff';
-    case FUNK = 'Funk.aiff';
-    case GLASS = 'Glass.aiff';
-    case HERO = 'Hero.aiff';
-    case MORSE = 'Morse.aiff';
-    case PING = 'Ping.aiff';
-    case POP = 'Pop.aiff';
-    case PURR = 'Purr.aiff';
-    case SOSUMI = 'Sosumi.aiff';
-    case SUBMARINE = 'Submarine.aiff';
-    case TINK = 'Tink.aiff';
 }
 
 function getColoredLogo(string $color): string
@@ -183,20 +189,15 @@ function loadItemsFromPage(string $path): array
     return $results;
 }
 
-function showToastNotification(string $title, string $message, ?Sound $sound = null): void
-{
-    $soundValue = null !== $sound
-        ? sprintf('sound name "%s"', $sound->value)
-        : '';
-
-    $command = sprintf(
-        'display notification "%s" with title "%s" %s',
-        $message,
-        $title,
-        $soundValue,
-    );
-
-    system("osascript -e '$command'");
+try {
+    $platform = Platform::from(PHP_OS);
+} catch (ValueError) {
+    die(sprintf(
+        "|image=%s\n---\nНеподдерживаемоя ОС %s | color=%s",
+        getColoredLogo('#ff0000'),
+        SESSION_FILE,
+        NO_ITEMS_COLOR,
+    ));
 }
 
 $cache = json_decode(
@@ -252,10 +253,9 @@ foreach ($results as $item) {
     if (($cache[$item['id']] ?? null) !== $item['status']->name) {
         $hasChanges = true;
 
-        showToastNotification(
+        $platform->showToastNotification(
             $item['title'],
             "Статус посылки сменился на {$item['status']->getText()}",
-            Sound::GLASS,
         );
     }
 
