@@ -14,6 +14,7 @@
 // <swiftbar.hideDisablePlugin>true</swiftbar.hideDisablePlugin>
 
 const SESSION_FILE = '/.bayshop_session_id';
+const CACHE_FILE = '/.bayshop_cache';
 const BASE_URL = 'https://bayshop.com';
 const LOGO_URL = BASE_URL . '/img/svg/logo-mob.svg';
 const REFRESH_BUTTON = 'Обновить | href=swiftbar://refreshplugin?name=bayshop';
@@ -27,6 +28,10 @@ if (!file_exists(__DIR__ . SESSION_FILE)) {
     file_put_contents(__DIR__ . SESSION_FILE, '');
 }
 
+if (!file_exists(__DIR__ . CACHE_FILE)) {
+    file_put_contents(__DIR__ . CACHE_FILE, '{}');
+}
+
 define('SESSION_ID', trim(file_get_contents(__DIR__ . SESSION_FILE)));
 
 if (empty(SESSION_ID)) {
@@ -36,6 +41,30 @@ if (empty(SESSION_ID)) {
         SESSION_FILE,
         NO_ITEMS_COLOR,
     ));
+}
+
+enum Platform: string
+{
+    case MAC_OS = 'Darwin';
+    case LINUX = 'Linux';
+
+    public function showToastNotification(string $title, string $message): void
+    {
+        $command = match ($this) {
+            self::MAC_OS => sprintf(
+                'osascript -e \'display notification "%s" with title "%s" sound name "Glass.aiff"\'',
+                $message,
+                $title,
+            ),
+            self::LINUX => sprintf(
+                'notify-send "%s" "%s"',
+                $title,
+                $message,
+            ),
+        };
+
+        exec($command);
+    }
 }
 
 enum Status: string
@@ -133,22 +162,49 @@ function loadItemsFromPage(string $path): array
     $document = new DOMDocument();
     @$document->loadHTML('<?xml encoding="utf-8" ?>' . $response);
     $finder = new DOMXPath($document);
+    $ids = $finder->query("//*[contains(@class, 'td-id')]");
     $titles = $finder->query("//*[contains(@class, 'td-text')]");
     $statuses = $finder->query("//*[contains(@class, 'td-label')]");
 
-    /** @var DOMElement $title */
-    foreach ($titles as $i => $title) {
-        $status = trim($statuses->item($i)->textContent);
+    foreach ($ids as $i => $id) {
+        /** @var DOMElement $id */
+        /** @var DOMElement $title */
+        $title = $titles->item($i);
+        $titleValue = trim($title->textContent);
+        $statusValue = trim($statuses->item($i)->textContent);
+        preg_match('/\s(R\d+)/', $id->textContent, $idMatches);
+        $idValue = !empty($idMatches)
+            ? $idMatches[1]
+            : md5($titleValue);
+
         $results[] = [
-            'title' => trim($title->textContent),
-            'rawStatus' => $status,
-            'status' => Status::tryFrom($status) ?? Status::UNRECOGNIZED,
+            'id' => $idValue,
+            'title' => $titleValue,
+            'rawStatus' => $statusValue,
+            'status' => Status::tryFrom($statusValue) ?? Status::UNRECOGNIZED,
             'href' => $title->firstElementChild->getAttribute('href'),
         ];
     }
 
     return $results;
 }
+
+try {
+    $platform = Platform::from(PHP_OS);
+} catch (ValueError) {
+    die(sprintf(
+        "|image=%s\n---\nНеподдерживаемоя ОС %s | color=%s",
+        getColoredLogo('#ff0000'),
+        SESSION_FILE,
+        NO_ITEMS_COLOR,
+    ));
+}
+
+$cache = json_decode(
+    json: file_get_contents(__DIR__ . CACHE_FILE),
+    associative: true,
+    flags: JSON_THROW_ON_ERROR,
+);
 
 $results = [];
 $results[] = loadItemsFromPage('mf-packages/');
@@ -179,6 +235,8 @@ echo sprintf(
     getColoredLogo(current($results)['status']->getColor()),
 );
 
+$hasChanges = false;
+
 foreach ($results as $item) {
     printf(
         "%s: %s | %s color=%s\n",
@@ -190,6 +248,24 @@ foreach ($results as $item) {
             ? sprintf('href=%s%s', BASE_URL, $item['href'])
             : '',
         $item['status']->getColor(),
+    );
+
+    if (($cache[$item['id']] ?? null) !== $item['status']->name) {
+        $hasChanges = true;
+
+        $platform->showToastNotification(
+            $item['title'],
+            "Статус посылки сменился на {$item['status']->getText()}",
+        );
+    }
+
+    $cache[$item['id']] = $item['status']->name;
+}
+
+if ($hasChanges) {
+    file_put_contents(
+        __DIR__ . CACHE_FILE,
+        json_encode($cache, JSON_THROW_ON_ERROR),
     );
 }
 
