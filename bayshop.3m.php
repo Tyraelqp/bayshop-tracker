@@ -177,6 +177,10 @@ function loadItemsFromPage(string $path): array
             ? $idMatches[1]
             : md5($titleValue);
 
+        $statusValue = preg_replace([
+          '/, осталось.+/',
+        ], '', $statusValue);
+
         $results[] = [
             'id' => $idValue,
             'title' => $titleValue,
