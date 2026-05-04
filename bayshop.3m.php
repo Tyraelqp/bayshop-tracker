@@ -148,7 +148,6 @@ function loadPage(string $path): string
     ]);
 
     $response = curl_exec($ch);
-    curl_close($ch);
 
     return $response;
 }
